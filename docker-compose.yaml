@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  jupyterhub:
+    build: .
+    container_name: jupyterhub
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./notebooks:/home/jupyter/notebooks
+    user: jupyter
+    depends_on:
+      - db
+    restart: unless-stopped
+    environment:
+      JUPYTERHUB_CRYPT_KEY: "dummykey"
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c work_mem=64MB
+      -c maintenance_work_mem=1GB
+      -c wal_level=replica
+      -c synchronous_commit=off
+      -c fsync=off
+      -c full_page_writes=off

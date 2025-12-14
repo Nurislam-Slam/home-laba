@@ -1,21 +1,12 @@
 version: '3.8'
 
 services:
-  jupyterhub:
-    build: .
-    container_name: jupyterhub
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./notebooks:/home/jupyter/notebooks
-    user: jupyter
-    depends_on:
-      - db
-    restart: unless-stopped
-    environment:
-      JUPYTERHUB_CRYPT_KEY: "dummykey"
+  # ----------------------------
+  # PostgreSQL
+  # ----------------------------
   db:
     image: postgres:15
+    container_name: postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -27,10 +18,70 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     command: >
       postgres
-      -c shared_buffers=2GB
-      -c work_mem=64MB
-      -c maintenance_work_mem=1GB
+      -c shared_buffers=16GB
+      -c work_mem=256MB
+      -c maintenance_work_mem=4GB
+      -c effective_cache_size=32GB
       -c wal_level=replica
       -c synchronous_commit=off
       -c fsync=off
       -c full_page_writes=off
+    restart: unless-stopped
+
+  # ----------------------------
+  # JupyterHub
+  # ----------------------------
+  jupyterhub:
+    build: .
+    container_name: jupyterhub
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./notebooks:/home/jupyter/notebooks
+      - ./jhub_data:/home/jupyter/data
+    user: jupyter
+    depends_on:
+      - db
+    environment:
+      JUPYTERHUB_CRYPT_KEY: ${JUPYTERHUB_CRYPT_KEY}
+      JUPYTERHUB_DATA_DIR: /home/jupyter/data
+    restart: unless-stopped
+
+  # ----------------------------
+  # Metabase
+  # ----------------------------
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    ports:
+      - "3001:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${POSTGRES_DB}
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${POSTGRES_USER}
+      MB_DB_PASS: ${POSTGRES_PASSWORD}
+      MB_DB_HOST: db
+      MB_ADMIN_EMAIL: ${METABASE_ADMIN_USER}
+      MB_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD}
+      MB_PASSWORD_RESET_TOKEN: myresettoken123
+    depends_on:
+      - db
+    volumes:
+      - ./metabase_data:/metabase-data
+    restart: unless-stopped
+
+  # ----------------------------
+  # Grafana
+  # ----------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+    restart: unless-stopped

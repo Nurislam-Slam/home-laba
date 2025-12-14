@@ -1,11 +1,15 @@
 
 .env
-
 *.log
 *.tmp
-
 __pycache__/
 *.pyc
-
-data/
-db_data/
+*.pyo
+pgdata/
+jhub_data/
+metabase_data/
+grafana_data/
+notebooks/
+*.sqlite
+*.db
+docker-compose.override.yaml
